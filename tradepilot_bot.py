@@ -411,7 +411,7 @@ async def on_ready():
     )
     await send_button_if_empty(
         ticket_ch,
-        "🎫 Support TradePilot",
+        "🎫・𝐎𝐮𝐯𝐫𝐢𝐫-𝐮𝐧-𝐓𝐢𝐜𝐤𝐞𝐭",
         "**Tu as acheté une offre ?**\n→ Clique sur le bouton et envoie ta confirmation Stripe\n\n"
         "**Tu as une question ?**\n→ Clique et pose ta question directement\n\n"
         "Notre équipe répond dans la journée ✅",
@@ -425,7 +425,7 @@ async def on_ready():
     )
     await send_button_if_empty(
         support_licence,
-        "🔑 Support Licence",
+        "🛠️・𝐒𝐮𝐩𝐩𝐨𝐫𝐭-𝐋𝐢𝐜𝐞𝐧𝐜𝐞",
         "Un problème avec ton installation ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
         SupportLicenceButton()
     )
@@ -437,7 +437,7 @@ async def on_ready():
     )
     await send_button_if_empty(
         support_setup,
-        "⚙️ Support Setup Pro",
+        "🔧・𝐒𝐮𝐩𝐩𝐨𝐫𝐭-𝐒𝐞𝐭𝐮𝐩",
         "Un problème avec ta session Setup Pro ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
         SupportSetupButton()
     )
@@ -449,7 +449,7 @@ async def on_ready():
     )
     await send_button_if_empty(
         support_vip,
-        "📡 Support Signal VIP",
+        "💎・𝐒𝐮𝐩𝐩𝐨𝐫𝐭-𝐕𝐢𝐩",
         "Un problème avec tes signaux ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
         SupportVIPButton()
     )
