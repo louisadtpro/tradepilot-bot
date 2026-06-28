@@ -9,11 +9,10 @@ import asyncio
 # ════════════════════════════════════════════════════════
 #  CONFIG
 # ════════════════════════════════════════════════════════
-BOT_TOKEN        = os.environ.get("BOT_TOKEN", "COLLE_TON_TOKEN_ICI")
-GUILD_ID         = 1518723776823558184
-VENTES_CHANNEL   = 1519256169338638346
-TICKET_CHANNEL   = None  # ID du salon #ouvrir-un-ticket (auto-détecté)
-ROLE_MEMBRE      = 1519010089032486933
+BOT_TOKEN      = os.environ.get("BOT_TOKEN", "COLLE_TON_TOKEN_ICI")
+GUILD_ID       = 1518723776823558184
+VENTES_CHANNEL = 1519256169338638346
+ROLE_MEMBRE    = 1519010089032486933
 
 ROLES = {
     "licence" : 1519020532555583610,
@@ -56,10 +55,42 @@ FIRST_MESSAGES = {
         "**Bonjour ! 👋**\n\n"
         "Un membre de l'équipe TradePilot va te répondre dans les plus brefs délais.\n\n"
         "**En attendant, dis-nous :**\n"
-        "→ Quelle est ta question ou ton problème ?\n"
-        "→ Quelle offre as-tu achetée ?\n\n"
+        "→ Quelle est ta question ou ton problème ?\n\n"
         "Nous répondons en général dans la journée ✅"
     ),
+    "support-licence": (
+        "**Bonjour ! 👋**\n\n"
+        "Tu as ouvert un ticket **Support Licence**.\n\n"
+        "Explique-nous ton problème :\n"
+        "→ Où en es-tu dans l'installation ?\n"
+        "→ Quel message d'erreur tu vois ?\n\n"
+        "On te répond dans la journée ✅"
+    ),
+    "support-setup": (
+        "**Bonjour ! 👋**\n\n"
+        "Tu as ouvert un ticket **Support Setup Pro**.\n\n"
+        "Pour préparer ta session :\n"
+        "→ Dis-nous ton broker (XM, IC Markets...)\n"
+        "→ MT4 ou MT5 ?\n"
+        "→ Installe **TeamViewer** ou **AnyDesk** sur ton PC\n\n"
+        "On te contacte rapidement ✅"
+    ),
+    "support-vip": (
+        "**Bonjour ! 👋**\n\n"
+        "Tu as ouvert un ticket **Support Signal VIP**.\n\n"
+        "Explique-nous ton problème :\n"
+        "→ Tu ne reçois pas les signaux ?\n"
+        "→ Tu as une question sur un signal ?\n\n"
+        "On te répond dans la journée ✅"
+    ),
+}
+
+# Noms possibles des salons (Discord met tout en minuscules)
+TICKET_CHANNEL_NAMES   = ["ouvrir-un-ticket", "ouvrir-un-ticket-1", "ouvrir-un-ticket"]
+SUPPORT_CHANNELS_NAMES = {
+    "support-licence" : ["support-licence", "support-licence-1"],
+    "support-setup"   : ["support-setup",   "support-setup-1"],
+    "support-vip"     : ["support-vip",     "support-vip-1"],
 }
 
 intents = discord.Intents.all()
@@ -67,71 +98,8 @@ app     = Flask(__name__)
 
 
 # ════════════════════════════════════════════════════════
-#  BOUTON TICKET MANUEL
+#  BOUTON FERMER TICKET
 # ════════════════════════════════════════════════════════
-class TicketButton(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(
-        label="🎫 Ouvrir un ticket",
-        style=discord.ButtonStyle.primary,
-        custom_id="open_ticket"
-    )
-    async def open_ticket(self, interaction: discord.Interaction, button: Button):
-        guild  = interaction.guild
-        member = interaction.user
-
-        # Vérifie si un ticket existe déjà pour ce membre
-        existing = discord.utils.get(
-            guild.text_channels,
-            name=f"ticket-{member.display_name.lower().replace(' ', '-')}"
-        )
-        if existing:
-            await interaction.response.send_message(
-                f"Tu as déjà un ticket ouvert : {existing.mention}",
-                ephemeral=True
-            )
-            return
-
-        # Crée la catégorie si elle n'existe pas
-        category = discord.utils.get(guild.categories, name="🎫 TICKETS")
-        if not category:
-            category = await guild.create_category(
-                "🎫 TICKETS",
-                overwrites={guild.default_role: discord.PermissionOverwrite(view_channel=False)}
-            )
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            member: discord.PermissionOverwrite(
-                view_channel=True, send_messages=True, read_message_history=True
-            ),
-        }
-        ticket = await category.create_text_channel(
-            f"ticket-{member.display_name.lower().replace(' ', '-')}",
-            overwrites=overwrites,
-            topic=f"Support — {member.display_name}"
-        )
-
-        # Message dans le ticket
-        embed = discord.Embed(
-            title=f"🎫 Ticket de {member.display_name}",
-            description=FIRST_MESSAGES["support"],
-            color=0xF5B830
-        )
-        embed.set_footer(text="TradePilot — Automatisation MT4 & MT5")
-
-        # Bouton pour fermer le ticket
-        close_view = CloseTicketButton()
-        await ticket.send(content=member.mention, embed=embed, view=close_view)
-
-        await interaction.response.send_message(
-            f"✅ Ton ticket a été créé : {ticket.mention}",
-            ephemeral=True
-        )
-
-
 class CloseTicketButton(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -148,6 +116,126 @@ class CloseTicketButton(View):
 
 
 # ════════════════════════════════════════════════════════
+#  BOUTON TICKET GÉNÉRAL
+# ════════════════════════════════════════════════════════
+class TicketButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="🎫 Ouvrir un ticket",
+        style=discord.ButtonStyle.primary,
+        custom_id="open_ticket_general"
+    )
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
+        await create_ticket(interaction, "support", "❓ Support Général")
+
+
+# ════════════════════════════════════════════════════════
+#  BOUTONS SUPPORT SPÉCIFIQUES
+# ════════════════════════════════════════════════════════
+class SupportLicenceButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="🎫 Ouvrir un ticket Support",
+        style=discord.ButtonStyle.primary,
+        custom_id="open_ticket_licence"
+    )
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
+        await create_ticket(interaction, "support-licence", "🔑 Support Licence")
+
+
+class SupportSetupButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="🎫 Ouvrir un ticket Support",
+        style=discord.ButtonStyle.primary,
+        custom_id="open_ticket_setup"
+    )
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
+        await create_ticket(interaction, "support-setup", "⚙️ Support Setup Pro")
+
+
+class SupportVIPButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="🎫 Ouvrir un ticket Support",
+        style=discord.ButtonStyle.primary,
+        custom_id="open_ticket_vip"
+    )
+    async def open_ticket(self, interaction: discord.Interaction, button: Button):
+        await create_ticket(interaction, "support-vip", "📡 Support Signal VIP")
+
+
+# ════════════════════════════════════════════════════════
+#  FONCTION CRÉATION TICKET
+# ════════════════════════════════════════════════════════
+async def create_ticket(interaction: discord.Interaction, ticket_type: str, label: str):
+    guild  = interaction.guild
+    member = interaction.user
+
+    # Vérifie si un ticket existe déjà
+    existing = discord.utils.get(
+        guild.text_channels,
+        name=f"ticket-{member.display_name.lower().replace(' ', '-')}"
+    )
+    if existing:
+        await interaction.response.send_message(
+            f"Tu as déjà un ticket ouvert : {existing.mention}",
+            ephemeral=True
+        )
+        return
+
+    # Crée la catégorie si besoin
+    category = discord.utils.get(guild.categories, name="🎫 TICKETS")
+    if not category:
+        category = await guild.create_category(
+            "🎫 TICKETS",
+            overwrites={guild.default_role: discord.PermissionOverwrite(view_channel=False)}
+        )
+
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        member: discord.PermissionOverwrite(
+            view_channel=True, send_messages=True, read_message_history=True
+        ),
+    }
+    ticket = await category.create_text_channel(
+        f"ticket-{member.display_name.lower().replace(' ', '-')}",
+        overwrites=overwrites,
+        topic=f"{label} — {member.display_name}"
+    )
+
+    embed = discord.Embed(
+        title=f"🎫 {label}",
+        description=FIRST_MESSAGES.get(ticket_type, FIRST_MESSAGES["support"]),
+        color=0xF5B830
+    )
+    embed.set_footer(text="TradePilot — Automatisation MT4 & MT5")
+    await ticket.send(content=member.mention, embed=embed, view=CloseTicketButton())
+
+    # Notif admin dans #ventes-dashboard
+    ventes = guild.get_channel(VENTES_CHANNEL)
+    if ventes:
+        embed_v = discord.Embed(title="🎫 NOUVEAU TICKET SUPPORT", color=0xF5B830)
+        embed_v.add_field(name="Client", value=f"{member.mention} ({member.display_name})", inline=True)
+        embed_v.add_field(name="Type",   value=label,                                        inline=True)
+        embed_v.add_field(name="Ticket", value=ticket.mention,                               inline=True)
+        await ventes.send(embed=embed_v)
+
+    await interaction.response.send_message(
+        f"✅ Ton ticket a été créé : {ticket.mention}",
+        ephemeral=True
+    )
+
+
+# ════════════════════════════════════════════════════════
 #  BOT
 # ════════════════════════════════════════════════════════
 class TradePilotBot(commands.Bot):
@@ -157,6 +245,9 @@ class TradePilotBot(commands.Bot):
     async def setup_hook(self):
         self.add_view(TicketButton())
         self.add_view(CloseTicketButton())
+        self.add_view(SupportLicenceButton())
+        self.add_view(SupportSetupButton())
+        self.add_view(SupportVIPButton())
 
 
 bot = TradePilotBot()
@@ -171,10 +262,8 @@ def achat():
     email      = data.get("email", "—")
     amount     = data.get("amount", "—")
     name       = data.get("name", "—")
-
     if not discord_id or not product:
         return jsonify({"error": "discord_id et product requis"}), 400
-
     asyncio.run_coroutine_threadsafe(
         handle_purchase(int(discord_id), product, email, amount, name),
         bot.loop
@@ -187,17 +276,14 @@ def home():
     return jsonify({"status": "TradePilot Bot actif ✅"}), 200
 
 
-# ── MEMBRE REJOINT → rôle Membre + DM ───────────────────
+# ── MEMBRE REJOINT ────────────────────────────────────────
 @bot.event
 async def on_member_join(member):
     if member.guild.id != GUILD_ID:
         return
-
     role = member.guild.get_role(ROLE_MEMBRE)
     if role:
         await member.add_roles(role)
-        print(f"✅ Rôle Membre → {member.display_name}")
-
     try:
         embed = discord.Embed(
             title="👋 Bienvenue sur TradePilot !",
@@ -215,31 +301,24 @@ async def on_member_join(member):
         embed.set_footer(text="TradePilot — Automatisation MT4 & MT5")
         await member.send(embed=embed)
     except discord.Forbidden:
-        print(f"⚠️ DMs fermés — {member.display_name}")
+        pass
 
 
 # ── GESTION D'UN ACHAT ───────────────────────────────────
 async def handle_purchase(discord_id, product, email, amount, name):
     guild = bot.get_guild(GUILD_ID)
     if not guild:
-        print("❌ Serveur introuvable")
         return
-
     try:
         member = guild.get_member(discord_id) or await guild.fetch_member(discord_id)
     except discord.NotFound:
-        print(f"❌ Membre {discord_id} introuvable")
         return
 
     label = PRODUCT_LABELS.get(product, product)
-
-    # 1. Donner le rôle
-    role = guild.get_role(ROLES.get(product))
+    role  = guild.get_role(ROLES.get(product))
     if role:
         await member.add_roles(role)
-        print(f"✅ Rôle {role.name} → {member.display_name}")
 
-    # 2. Créer le ticket
     category = discord.utils.get(guild.categories, name="🎫 TICKETS")
     if not category:
         category = await guild.create_category(
@@ -259,7 +338,6 @@ async def handle_purchase(discord_id, product, email, amount, name):
         topic=f"{member.display_name} — {label}"
     )
 
-    # 3. Message dans le ticket
     embed_t = discord.Embed(
         title=f"🎫 Ticket de {member.display_name}",
         description=FIRST_MESSAGES.get(product, "Bienvenue !"),
@@ -268,11 +346,8 @@ async def handle_purchase(discord_id, product, email, amount, name):
     embed_t.add_field(name="Produit", value=label,  inline=True)
     embed_t.add_field(name="Email",   value=email,  inline=True)
     embed_t.set_footer(text="TradePilot — Automatisation MT4 & MT5")
+    await ticket.send(content=member.mention, embed=embed_t, view=CloseTicketButton())
 
-    close_view = CloseTicketButton()
-    await ticket.send(content=member.mention, embed=embed_t, view=close_view)
-
-    # 4. DM au client
     try:
         embed_dm = discord.Embed(
             title="🎉 Ton achat est confirmé !",
@@ -287,9 +362,8 @@ async def handle_purchase(discord_id, product, email, amount, name):
         embed_dm.set_footer(text="TradePilot — Automatisation MT4 & MT5")
         await member.send(embed=embed_dm)
     except discord.Forbidden:
-        await ticket.send("⚠️ DMs désactivés — contacte le client manuellement.")
+        pass
 
-    # 5. Notification ventes-dashboard
     ventes = guild.get_channel(VENTES_CHANNEL)
     if ventes:
         embed_v = discord.Embed(title="💰 NOUVEL ACHAT", color=0x2ECC71)
@@ -301,10 +375,19 @@ async def handle_purchase(discord_id, product, email, amount, name):
         embed_v.add_field(name="Statut",  value="✅ Rôle · ✅ Ticket · ✅ DM", inline=False)
         await ventes.send(embed=embed_v)
 
-    print(f"✅ Achat traité : {member.display_name} — {label}")
+
+# ── ON READY → envoie les boutons dans les salons ────────
+async def send_button_if_empty(channel, embed_title, embed_desc, view):
+    if channel is None:
+        return
+    async for msg in channel.history(limit=20):
+        if msg.author == bot.user and msg.components:
+            return  # Bouton déjà envoyé
+    embed = discord.Embed(title=embed_title, description=embed_desc, color=0xF5B830)
+    embed.set_footer(text="TradePilot — Automatisation MT4 & MT5")
+    await channel.send(embed=embed, view=view)
 
 
-# ── DÉMARRAGE → envoie le bouton dans #ouvrir-un-ticket ─
 @bot.event
 async def on_ready():
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -316,28 +399,60 @@ async def on_ready():
     if not guild:
         return
 
-    # Cherche le salon #ouvrir-un-ticket
-    ticket_channel = discord.utils.get(guild.text_channels, name="ouvrir-un-ticket")
-    if ticket_channel:
-        # Vérifie si le message bouton existe déjà
-        async for msg in ticket_channel.history(limit=10):
-            if msg.author == bot.user:
-                return  # Déjà envoyé
+    # Liste tous les salons pour debug
+    print("Salons trouvés :")
+    for ch in guild.text_channels:
+        print(f"  - {ch.name}")
 
-        embed = discord.Embed(
-            title="🎫 Support TradePilot",
-            description=(
-                "**Tu as acheté une offre ?**\n"
-                "→ Clique sur le bouton et envoie ta confirmation Stripe\n\n"
-                "**Tu as une question avant d'acheter ?**\n"
-                "→ Clique et pose ta question directement\n\n"
-                "Notre équipe répond dans la journée ✅"
-            ),
-            color=0xF5B830
-        )
-        embed.set_footer(text="TradePilot — Automatisation MT4 & MT5")
-        await ticket_channel.send(embed=embed, view=TicketButton())
-        print("✅ Bouton ticket envoyé dans #ouvrir-un-ticket")
+    # #ouvrir-un-ticket
+    ticket_ch = discord.utils.find(
+        lambda c: "ouvrir" in c.name and "ticket" in c.name,
+        guild.text_channels
+    )
+    await send_button_if_empty(
+        ticket_ch,
+        "🎫 Support TradePilot",
+        "**Tu as acheté une offre ?**\n→ Clique sur le bouton et envoie ta confirmation Stripe\n\n"
+        "**Tu as une question ?**\n→ Clique et pose ta question directement\n\n"
+        "Notre équipe répond dans la journée ✅",
+        TicketButton()
+    )
+
+    # #support-licence
+    support_licence = discord.utils.find(
+        lambda c: "support" in c.name and "licence" in c.name,
+        guild.text_channels
+    )
+    await send_button_if_empty(
+        support_licence,
+        "🔑 Support Licence",
+        "Un problème avec ton installation ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
+        SupportLicenceButton()
+    )
+
+    # #support-setup
+    support_setup = discord.utils.find(
+        lambda c: "support" in c.name and "setup" in c.name,
+        guild.text_channels
+    )
+    await send_button_if_empty(
+        support_setup,
+        "⚙️ Support Setup Pro",
+        "Un problème avec ta session Setup Pro ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
+        SupportSetupButton()
+    )
+
+    # #support-vip
+    support_vip = discord.utils.find(
+        lambda c: "support" in c.name and ("vip" in c.name or "signal" in c.name),
+        guild.text_channels
+    )
+    await send_button_if_empty(
+        support_vip,
+        "📡 Support Signal VIP",
+        "Un problème avec tes signaux ?\nClique sur le bouton pour ouvrir un ticket.\n\nNous répondons dans la journée ✅",
+        SupportVIPButton()
+    )
 
 
 def run_flask():
